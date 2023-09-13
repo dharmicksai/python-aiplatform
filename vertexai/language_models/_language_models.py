@@ -287,9 +287,10 @@ class _TunableModelMixin(_LanguageModel):
                 "Please specify the tuning job location (`tuning_job_location`)."
                 f"Tuning is supported in the following locations: {_TUNING_LOCATIONS}"
             )
-        if tuned_model_location != _TUNED_MODEL_LOCATION:
+        if tuned_model_location not in _TUNED_MODEL_LOCATIONS:
             raise ValueError(
-                f'Model deployment is only supported in the following locations: tuned_model_location="{_TUNED_MODEL_LOCATION}"'
+                "Tuned model deployment is only supported in the following locations: "
+                f"{_TUNED_MODEL_LOCATIONS}"
             )
         model_info = _model_garden_models._get_model_info(
             model_id=self._model_id,
@@ -304,6 +305,7 @@ class _TunableModelMixin(_LanguageModel):
             tuning_parameters=tuning_parameters,
             model_display_name=model_display_name,
             tuning_job_location=tuning_job_location,
+            tuned_model_location=tuned_model_location,
         )
 
         job = _LanguageModelTuningJob(
@@ -1856,9 +1858,29 @@ class _PreviewCodeGenerationModel(CodeGenerationModel, _TunableModelMixin):
 
 ###### Model tuning
 # Currently, tuning can only work in this location
-_TUNING_LOCATIONS = ("europe-west4", "us-central1")
-# Currently, deployment can only work in this location
-_TUNED_MODEL_LOCATION = "us-central1"
+
+_SUPPORTED_LOCATIONS = [
+    # 1
+    "us-central1",
+    "europe-west4",
+    "asia-southeast1",
+    # 2
+    "us-west1",
+    "europe-west3",
+    "europe-west2",
+    "asia-northeast1",
+    # 3
+    "us-east4",
+    "us-west4",
+    "northamerica-northeast1",
+    "europe-west9",
+    "europe-west1",
+    "asia-northeast3",
+]
+
+_TUNING_LOCATIONS = _SUPPORTED_LOCATIONS
+# Currently, deployment can only work in these locations
+_TUNED_MODEL_LOCATIONS = _SUPPORTED_LOCATIONS
 
 
 class _LanguageModelTuningJob:
@@ -1924,7 +1946,7 @@ def _list_tuned_model_names(model_id: str) -> List[str]:
     tuned_models = aiplatform.Model.list(
         filter=f'labels.{_TUNING_BASE_MODEL_ID_LABEL_KEY}="{model_id.replace("@", "-")}"',
         # TODO(b/275444096): Remove the explicit location once models are deployed to the user's selected location
-        location=_TUNED_MODEL_LOCATION,
+        location=aiplatform_initializer.global_config.location,
     )
     model_names = [model.resource_name for model in tuned_models]
     return model_names
@@ -1942,8 +1964,9 @@ def _launch_tuning_job(
     model_id: str,
     tuning_pipeline_uri: str,
     tuning_parameters: Dict[str, Any],
+    tuning_job_location: str,
+    tuned_model_location: str,
     model_display_name: Optional[str] = None,
-    tuning_job_location: str = _TUNING_LOCATIONS[0],
 ) -> aiplatform.PipelineJob:
     output_dir_uri = _generate_tuned_model_dir_uri(model_id=model_id)
     if isinstance(training_data, str):
@@ -1989,7 +2012,7 @@ def _launch_tuning_job(
         "project": aiplatform_initializer.global_config.project,
         # TODO(b/275444096): Remove the explicit location once tuning can happen in all regions
         # "location": aiplatform_initializer.global_config.location,
-        "location": _TUNED_MODEL_LOCATION,
+        "location": tuned_model_location,
         "large_model_reference": model_id,
         "model_display_name": model_display_name,
     }
