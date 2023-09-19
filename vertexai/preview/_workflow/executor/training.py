@@ -20,7 +20,7 @@ import logging
 import os
 import re
 import time
-from typing import Any, Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union, Hashable
 import warnings
 
 from google.api_core import exceptions as api_exceptions
@@ -493,6 +493,7 @@ def remote_training(invokable: shared._Invokable, rewrapper: Any):
     method_name = method.__name__
     bound_args = invokable.bound_arguments
     config = invokable.vertex_config.remote_config
+    serializer_args = invokable.vertex_config.remote_config.serializer_args
 
     autolog = vertexai.preview.global_config.autolog
     service_account = _get_service_account(config, autolog=autolog)
@@ -582,6 +583,7 @@ def remote_training(invokable: shared._Invokable, rewrapper: Any):
     serialization_metadata = serializer.serialize(
         to_serialize=self,
         gcs_path=os.path.join(remote_job_input_path, "input_estimator"),
+        **serializer_args.get(self, {}),
     )
     requirements += serialization_metadata[
         serializers_base.SERIALIZATION_METADATA_DEPENDENCIES_KEY
@@ -593,11 +595,13 @@ def remote_training(invokable: shared._Invokable, rewrapper: Any):
                 to_serialize=arg_value,
                 gcs_path=os.path.join(remote_job_input_path, f"{arg_name}"),
                 framework=detected_framework,
+                **serializer_args.get(arg_value, {}) if isinstance(arg_value, Hashable) else {},
             )
         else:
             serialization_metadata = serializer.serialize(
                 to_serialize=arg_value,
                 gcs_path=os.path.join(remote_job_input_path, f"{arg_name}"),
+                **serializer_args.get(arg_value, {}) if isinstance(arg_value, Hashable) else {},
             )
         # serializer.get_dependencies() must be run after serializer.serialize()
         requirements += serialization_metadata[
@@ -689,7 +693,8 @@ def remote_training(invokable: shared._Invokable, rewrapper: Any):
         remote_job_output_path,
         model_utils._REWRAPPER_NAME,
     )
-    serializer.serialize(rewrapper, filepath)
+    serializer.serialize(rewrapper, filepath,
+                         **serializer_args.get(rewrapper, {}))
 
     # create & run the CustomJob
 

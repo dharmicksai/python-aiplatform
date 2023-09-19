@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 import dataclasses
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 
 @dataclasses.dataclass
@@ -101,6 +101,9 @@ class RemoteConfig(_BaseConfig):
         custom_commands (List[str]):
             List of custom commands to be run in the remote job environment.
             These commands will be run before the requirements are installed.
+        serializer_args (Dict[Any, Dict[str, Any]]):
+            Map from object to extra arguments when serializing the object. The extra
+            arguments is a dictionary from the argument names to the argument values.
     """
 
     enable_cuda: bool = False
@@ -109,6 +112,9 @@ class RemoteConfig(_BaseConfig):
     service_account: Optional[str] = None
     requirements: List[str] = dataclasses.field(default_factory=list)
     custom_commands: List[str] = dataclasses.field(default_factory=list)
+    serializer_args: Dict[Any, Dict[str, Any]] = dataclasses.field(
+        default_factory=dict
+    )
 
 
 @dataclasses.dataclass
