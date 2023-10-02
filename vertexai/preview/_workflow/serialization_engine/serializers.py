@@ -38,6 +38,8 @@ from vertexai.preview._workflow.serialization_engine import (
     serializers_base,
 )
 
+from packaging import version
+
 try:
     import cloudpickle
 except ImportError:
@@ -1124,6 +1126,8 @@ class BigframeSerializer(serializers_base.Serializer):
         if detected_framework == "torch":
             self.register_custom_command("pip install torchdata")
             self.register_custom_command("pip install torcharrow")
+        elif detected_framework == "tensorflow":
+            self.register_custom_command("pip install tensorflow-io==" + self._get_tfio_verison())
         if not _is_valid_gcs_path(gcs_path):
             raise ValueError(f"Invalid gcs path: {gcs_path}")
 
@@ -1140,6 +1144,34 @@ class BigframeSerializer(serializers_base.Serializer):
         # Convert BigframesData to Parquet (GCS)
         parquet_gcs_path = gcs_path + "/*"  # path is required to contain '*'
         to_serialize.to_parquet(parquet_gcs_path, index=True)
+
+    def _get_tfio_verison(self):
+        major, minor, _ = version.Version(tf.__version__).release
+        # Map tf major.minor version to tfio version from https://pypi.org/project/tensorflow-io/
+        tfio_version_dict = {
+            "1.12": "0.3.0",
+            "1.13": "0.6.0",
+            "1.14": "0.7.2",
+            "1.15": "0.8.1",
+            "2.0": "0.10.0",
+            "2.1": "0.12.0",
+            "2.2": "0.14.0",
+            "2.3": "0.16.0",
+            "2.4": "0.17.1",
+            "2.5": "0.19.1",
+            "2.6": "0.21.0",
+            "2.7": "0.23.1",
+            "2.8": "0.25.0",
+            "2.9": "0.26.0",
+            "2.10": "0.27.0",
+            "2.11": "0.31.0",
+            "2.12": "0.32.0",
+            "2.13": "0.34.0",  # TODO(b/295580335): Support TF 2.13
+        }
+        tf_version = f"{major}.{minor}"
+        if tf_version not in tfio_version_dict:
+            raise ValueError("Tensorflow version is not supported for Bigframes.")
+        return tfio_version_dict[tf_version]
 
     def deserialize(
         self, serialized_gcs_path: str, **kwargs
