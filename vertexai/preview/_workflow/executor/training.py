@@ -628,20 +628,38 @@ def remote_training(invokable: shared._Invokable, rewrapper: Any):
     )
 
     if not config.container_uri:
-        container_uri = (
-            supported_frameworks._get_cpu_container_uri()
-            if not enable_cuda
-            else supported_frameworks._get_gpu_container_uri(self)
-        )
+        if not enable_cuda:
+            container_uri = supported_frameworks._get_cpu_container_uri()
+            command = []
+        else:
+            container_uri = supported_frameworks._get_gpu_container_uri(self)
+            local_python_version = (
+                supported_frameworks._get_python_minor_version() + ".0"
+            )
+            if local_python_version != "3.10.0":
+                command = [
+                    "apt update && "
+                    "apt install -y software-properties-common wget build-essential && "
+                    f"wget https://www.python.org/ftp/python/{local_python_version}"
+                    f"/Python-{local_python_version}.tar.xz && "
+                    f"tar -xf Python-{local_python_version}.tar.xz && "
+                    f"cd Python-{local_python_version} && "
+                    "./configure --enable-optimizations && "
+                    "make altinstall &&"
+                ]
+            else:
+                command = []
+
         requirements = _dedupe_requirements(
             vertex_requirements + config.requirements + requirements
         )
     else:
         container_uri = config.container_uri
         requirements = _dedupe_requirements(vertex_requirements + config.requirements)
+        command = []
 
     requirements = _add_indirect_dependency_versions(requirements)
-    command = ["export PIP_ROOT_USER_ACTION=ignore &&"]
+    command.append("export PIP_ROOT_USER_ACTION=ignore &&")
 
     # Combine user custom_commands and serializer custom_commands
     custom_commands += serialization_metadata[
@@ -693,10 +711,6 @@ def remote_training(invokable: shared._Invokable, rewrapper: Any):
         + autolog_command
     )
     command.append(training_command)
-    # Temporary fix for git not installed in pytorch cuda image
-    # Remove it once SDK 2.0 is release and don't need to be installed from git
-    if container_uri == "pytorch/pytorch:2.0.0-cuda11.7-cudnn8-runtime":
-        command = ["apt-get update && apt-get install -y git &&"] + command
 
     command = ["sh", "-c", " ".join(command)]
 
