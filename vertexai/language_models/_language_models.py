@@ -601,7 +601,7 @@ class _CountTokensMixin(_LanguageModel):
     ) -> CountTokensResponse:
         """Counts the tokens and billable characters for a given prompt.
 
-        Note: this does not make a request to the model, it only counts the tokens
+        Note: this does not make a prediction request to the model, it only counts the tokens
         in the request.
 
         Args:
@@ -1513,6 +1513,47 @@ class _PreviewChatModel(ChatModel, _PreviewTunableChatModelMixin):
 
     _LAUNCH_STAGE = _model_garden_models._SDK_PUBLIC_PREVIEW_LAUNCH_STAGE
 
+    def start_chat(
+        self,
+        *,
+        context: Optional[str] = None,
+        examples: Optional[List[InputOutputTextPair]] = None,
+        max_output_tokens: Optional[int] = None,
+        temperature: Optional[float] = None,
+        top_k: Optional[int] = None,
+        top_p: Optional[float] = None,
+        message_history: Optional[List[ChatMessage]] = None,
+        stop_sequences: Optional[List[str]] = None,
+    ) -> "_PreviewChatSession":
+        """Starts a chat session with the model.
+
+        Args:
+            context: Context shapes how the model responds throughout the conversation.
+                For example, you can use context to specify words the model can or cannot use, topics to focus on or avoid, or the response format or style
+            examples: List of structured messages to the model to learn how to respond to the conversation.
+                A list of `InputOutputTextPair` objects.
+            max_output_tokens: Max length of the output text in tokens. Range: [1, 1024].
+            temperature: Controls the randomness of predictions. Range: [0, 1]. Default: 0.
+            top_k: The number of highest probability vocabulary tokens to keep for top-k-filtering. Range: [1, 40]. Default: 40.
+            top_p: The cumulative probability of parameter highest probability vocabulary tokens to keep for nucleus sampling. Range: [0, 1]. Default: 0.95.
+            message_history: A list of previously sent and received messages.
+            stop_sequences: Customized stop sequences to stop the decoding process.
+
+        Returns:
+            A `ChatSession` object.
+        """
+        return _PreviewChatSession(
+            model=self,
+            context=context,
+            examples=examples,
+            max_output_tokens=max_output_tokens,
+            temperature=temperature,
+            top_k=top_k,
+            top_p=top_p,
+            message_history=message_history,
+            stop_sequences=stop_sequences,
+        )
+
 
 class CodeChatModel(_ChatModelBase):
     """CodeChatModel represents a model that is capable of completing code.
@@ -1906,6 +1947,92 @@ class _ChatSessionBase:
         self._message_history.append(
             ChatMessage(content=full_response_text, author=self.MODEL_AUTHOR)
         )
+
+
+class _ChatSessionCountTokensMixin(_ChatSessionBase):
+    """A mixin class for adding count_tokens to ChatSession."""
+
+    def count_tokens(
+        self,
+        messages: List[str],
+        context: Optional[str] = None,
+        examples: Optional[List[InputOutputTextPair]] = None,
+    ) -> CountTokensResponse:
+        """Counts the tokens and billable characters for a given chat message, context, and examples.
+
+        Note: this does not make a prediction request to the model, it only counts the tokens
+        in the request.
+
+        Args:
+            messages (List[str]):
+                Required. A list of chat messages for the model. For example: ["What should I do today?", "How's it going?"]
+            context (str):
+                Optional. Context shapes how the model responds throughout the conversation.
+                For example, you can use context to specify words the model can or cannot use, topics to focus on or avoid, or the response format or style
+            examples (List[InputOutputTextPair]):
+                Optional. List of structured messages to the model to learn how to respond to the conversation.
+                A list of `InputOutputTextPair` objects.
+        Returns:
+            A `CountTokensResponse` object that contains the number of tokens
+            in the text and the number of billable characters.
+        """
+
+        message_structs = []
+        all_messages = messages + self._message_history
+
+        for message in all_messages:
+            message_structs.append(
+                {
+                    "author": message.author
+                    if isinstance(message, InputOutputTextPair)
+                    else _ChatSessionBase.USER_AUTHOR,
+                    "content": message.content
+                    if isinstance(message, InputOutputTextPair)
+                    else message,
+                }
+            )
+
+        instance = {"messages": message_structs}
+
+        if self._context:
+            instance["context"] = self._context
+        elif context:
+            instance["context"] = context
+
+        if self._examples:
+            instance["examples"] = [
+                {
+                    "input": {"content": example.input_text},
+                    "output": {"content": example.output_text},
+                }
+                for example in self._examples
+            ]
+        elif examples:
+            instance["examples"] = [
+                {
+                    "input": {"content": example.input_text},
+                    "output": {"content": example.output_text},
+                }
+                for example in examples
+            ]
+
+        count_tokens_response = self._model._endpoint._prediction_client.select_version(
+            "v1beta1"
+        ).count_tokens(
+            endpoint=self._model._endpoint_name,
+            instances=instance,
+        )
+
+        return CountTokensResponse(
+            total_tokens=count_tokens_response.total_tokens,
+            total_billable_characters=count_tokens_response.total_billable_characters,
+            _count_tokens_response=count_tokens_response,
+        )
+
+
+class _PreviewChatSession(_ChatSessionCountTokensMixin):
+
+    __module__ = "vertexai.preview.language_models"
 
 
 class ChatSession(_ChatSessionBase):

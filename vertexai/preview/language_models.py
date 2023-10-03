@@ -16,6 +16,7 @@
 
 from vertexai.language_models._language_models import (
     _PreviewChatModel,
+    _PreviewChatSession,
     _PreviewCodeChatModel,
     _PreviewCodeGenerationModel,
     _PreviewTextEmbeddingModel,
@@ -43,6 +44,7 @@ from vertexai.language_models._evaluatable_language_models import (
 
 
 ChatModel = _PreviewChatModel
+ChatSession = _PreviewChatSession
 CodeChatModel = _PreviewCodeChatModel
 CodeGenerationModel = _PreviewCodeGenerationModel
 TextGenerationModel = _PreviewTextGenerationModel
