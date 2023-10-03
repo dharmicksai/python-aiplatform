@@ -304,3 +304,4 @@ class PersistentResourceConfig:
     resource_pools: Optional[
         "vertexai.preview.developer.remote_specs.ResourcePool"  # noqa: F821
     ] = None
+    disable: Optional[bool] = False
