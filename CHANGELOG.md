@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.35.0](https://github.com/googleapis/python-aiplatform/compare/v1.34.0...v1.35.0) (2023-10-03)
+
+
+### Features
+
+* Add serializer.register_custom_command() ([639cf10](https://github.com/googleapis/python-aiplatform/commit/639cf10e444f5aee200cdf0ffaa63e768dc4119b))
+* LLM - Added support for multiple text generation response candidates ([c3ae475](https://github.com/googleapis/python-aiplatform/commit/c3ae475efaa9cbe85315b0792c0948a8f5c13bed))
+
+
+### Bug Fixes
+
+* Resolve Artifact Registry tags when creating PipelineJob ([f04ca35](https://github.com/googleapis/python-aiplatform/commit/f04ca35894e09bbe75d47a65bf540e95df6fe610))
+* Resolve Artifact Registry tags when creating PipelineJob ([06bf487](https://github.com/googleapis/python-aiplatform/commit/06bf487e51e26dfa1cab3f6d87c9f3afd45e0e2c))
+
+
+### Documentation
+
+* Add probabilistic inference to TiDE and L2L  model code samples. ([efe88f9](https://github.com/googleapis/python-aiplatform/commit/efe88f98abb57ec11cdd326b87cb935a6b370257))
+
 ## [1.34.0](https://github.com/googleapis/python-aiplatform/compare/v1.33.1...v1.34.0) (2023-10-02)
 
 
