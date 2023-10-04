@@ -205,7 +205,9 @@ class ImageGenerationModel(
                 parameters["aspectRatio"] = f"{width}:{height}"
 
         parameters["sampleCount"] = number_of_images
-
+        if negative_prompt:
+            parameters["negativePrompt"] =   negative_prompt
+            
         if seed is not None:
             # Note: String seed and numerical seed give different results
             parameters["seed"] = seed
